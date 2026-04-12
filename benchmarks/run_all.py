@@ -9,8 +9,56 @@ import argparse
 import json
 import os
 import signal
+import subprocess
 import time
 import threading
+
+
+def _rocm_override_if_needed():
+    """Set HSA_OVERRIDE_GFX_VERSION when the detected GPU arch isn't in PyTorch's
+    compiled target list.  No-op on CUDA, macOS, and CPU-only machines."""
+    if "HSA_OVERRIDE_GFX_VERSION" in os.environ:
+        return  # user already set it
+
+    try:
+        out = subprocess.run(
+            ["rocm_agent_enumerator"], capture_output=True, text=True, timeout=5
+        ).stdout
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return  # not a ROCm system
+
+    agents = [l.strip() for l in out.splitlines()
+              if l.strip().startswith("gfx") and l.strip() != "gfx000"]
+    if not agents:
+        return
+
+    arch = agents[0]  # e.g. "gfx1035"
+
+    # Architectures that PyTorch ROCm wheels normally include
+    PYTORCH_TARGETS = {
+        "gfx900", "gfx906", "gfx908", "gfx90a",
+        "gfx940", "gfx941", "gfx942",
+        "gfx1030", "gfx1100", "gfx1101", "gfx1102",
+    }
+    if arch in PYTORCH_TARGETS:
+        return  # natively supported, no override needed
+
+    # Map unsupported arch prefix → nearest supported HSA version string
+    FAMILY_FALLBACK = {
+        "gfx90":  "9.0.4",   # Vega20 variants
+        "gfx94":  "9.4.2",   # CDNA3 variants
+        "gfx103": "10.3.0",  # RDNA2 iGPU variants (gfx1031/1035/1036)
+        "gfx110": "11.0.0",  # RDNA3 variants (gfx1103)
+        "gfx115": "11.5.0",  # RDNA4 variants
+    }
+    for prefix, version in FAMILY_FALLBACK.items():
+        if arch.startswith(prefix):
+            os.environ["HSA_OVERRIDE_GFX_VERSION"] = version
+            return
+
+
+_rocm_override_if_needed()
+
 import torch
 from collections import namedtuple
 from datetime import datetime
@@ -40,7 +88,7 @@ BENCHMARKS = [
     Bench("matmul",      bench_matmul,      ["cpu/fp32", "gpu/fp32", "gpu/fp16", "gpu/fp8", "gpu/fp4"], "matmul"),
     Bench("cnn",         bench_cnn,         ["cpu/fp32", "gpu/fp32", "gpu/fp16"],                        "cnn_resnet50"),
     Bench("transformer", bench_transformer, ["cpu/fp32", "gpu/fp32", "gpu/fp16"],                        "transformer_gpt2"),
-    Bench("memory",      bench_memory,      ["gpu/fp32", "gpu/fp16", "gpu/fp8", "gpu/fp4"],              "memory_bandwidth"),
+    Bench("memory",      bench_memory,      ["gpu/fp32"],                                               "memory_bandwidth"),
 ]
 
 # Pre-computed: display label → result benchmark name (used in hot loop)
@@ -54,11 +102,10 @@ DTYPE_MAP = {
 }
 HAS_GPU = torch.cuda.is_available()
 
-# Sentinel values stored in the results index for known non-runnable states
-_SENTINEL = {
-    "unavailable":    "\x00na",
-    "hw unsupported": "\x00hw",
-    "ctx error":      "\x00ctx",
+# Spec → results-table column name
+SPEC_TO_COL = {
+    "cpu/fp32": "CPU FP32", "gpu/fp32": "GPU FP32",
+    "gpu/fp16": "GPU FP16", "gpu/fp8":  "GPU FP8", "gpu/fp4": "GPU FP4",
 }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -189,66 +236,35 @@ def _result_key(r: dict) -> str:
     return "?"
 
 
-def make_results_table(results: list) -> Panel:
-    """Pivot table: rows = (benchmark, tier), columns = CPU FP32 / GPU FP32 / GPU FP16 / FP8 / FP4."""
+def make_results_table(table_cells: dict) -> Panel:
+    """Pivot table driven by table_cells: (result_name, tier, col) → display string.
+    Cells are pre-populated at startup and updated in-place as jobs finish."""
 
-    def _sentinel(err: str) -> str:
-        return next((v for k, v in _SENTINEL.items() if k in err), "\x00hw")
+    COLS = ["CPU FP32", "GPU FP32", "GPU FP16", "GPU FP8", "GPU FP4"]
 
     def _cell(v: str) -> Text:
-        if not v:          return Text("—",              style="dim")
-        if v == "\x00hw":  return Text("hw unsupported", style="dim red")
-        if v == "\x00ctx": return Text("ctx error",      style="dim red")
-        if v == "\x00na":  return Text("unavailable",    style="dim")
+        if v == "hw unsupported": return Text("hw unsupported", style="dim red")
+        if v == "ctx error":      return Text("ctx error",      style="dim red")
+        if v == "unavailable":    return Text("unavailable",    style="dim")
+        if v == "—":              return Text("—",              style="dim")
         return Text(v)
-
-    # Build index: {(result_name, tier): {"GPU FP32": value, ...}}
-    # Errors first, then successes override — so partial runs show what's known
-    index: dict = {}
-    for r in results:
-        bench = r.get("benchmark", "")
-        tier  = r.get("tier", "")
-        dev   = "GPU" if r.get("device") == "cuda" else "CPU"
-        col   = f"{dev} {r.get('dtype_label', 'FP32')}"
-        value = _sentinel(r["error"]) if "error" in r else _result_key(r)
-        if "error" not in r or col not in index.get((bench, tier), {}):
-            index.setdefault((bench, tier), {})[col] = value
 
     tbl = Table(box=box.SIMPLE_HEAVY, header_style="bold cyan", expand=True)
     tbl.add_column("Benchmark", style="bold", width=14, no_wrap=True)
     tbl.add_column("Tier",      width=7,      no_wrap=True)
-    tbl.add_column("CPU FP32",  justify="right", min_width=12, no_wrap=True)
-    tbl.add_column("GPU FP32",  justify="right", min_width=12, no_wrap=True)
-    tbl.add_column("GPU FP16",  justify="right", min_width=12, no_wrap=True)
-    tbl.add_column("GPU FP8",   justify="right", min_width=12, no_wrap=True)
-    tbl.add_column("GPU FP4",   justify="right", min_width=12, no_wrap=True)
+    for col in COLS:
+        tbl.add_column(col, justify="right", min_width=12, no_wrap=True)
 
     prev_result_name = None
-
     for b in BENCHMARKS:
         for tier in TIERS:
-            row = index.get((b.result_name, tier))
-            if row is None:
-                continue
-
             label = b.label if b.result_name != prev_result_name else ""
             prev_result_name = b.result_name
 
             if b.result_name == "memory_bandwidth":
-                mem_r = next((r for r in results
-                              if r.get("benchmark") == "memory_bandwidth"
-                              and r.get("tier") == tier and "error" not in r), None)
-                span = Text()
-                if mem_r:
-                    span.append("  ".join(f"{k} {v:.1f} GB/s"
-                                          for k, v in mem_r.get("transfers", {}).items()))
-                else:
-                    span.append("—", style="dim")
-                for col, fp_label in [("GPU FP8", "FP8"), ("GPU FP4", "FP4")]:
-                    v = row.get(col, "")
-                    if v == "\x00hw":    span.append(f"  {fp_label}: hw unsupported", style="dim red")
-                    elif v == "\x00na":  span.append(f"  {fp_label}: unavailable",    style="dim")
-                    elif v == "\x00ctx": span.append(f"  {fp_label}: ctx error",      style="dim red")
+                # Memory row: transfer speeds span the result columns (dtype-independent)
+                v = table_cells.get((b.result_name, tier, "GPU FP32"), "—")
+                span = Text(v, style="dim" if v == "—" else "")
                 tbl.add_row(label, Text(tier, style=TIER_STYLE.get(tier, "")),
                             span, Text(""), Text(""), Text(""), Text(""))
                 continue
@@ -256,11 +272,7 @@ def make_results_table(results: list) -> Panel:
             tbl.add_row(
                 label,
                 Text(tier, style=TIER_STYLE.get(tier, "")),
-                _cell(row.get("CPU FP32", "")),
-                _cell(row.get("GPU FP32", "")),
-                _cell(row.get("GPU FP16", "")),
-                _cell(row.get("GPU FP8",  "")),
-                _cell(row.get("GPU FP4",  "")),
+                *[_cell(table_cells.get((b.result_name, tier, col), "—")) for col in COLS],
             )
 
     footnote = Text("\n H2D = Host→GPU  D2H = GPU→Host  D2D = GPU internal copy", style="dim italic")
@@ -380,14 +392,24 @@ def generate_report(results: list, device_name: str, out_path: Path):
 def main():
     parser = argparse.ArgumentParser(description="mlmark benchmark runner")
     parser.add_argument("-o", "--output", required=True, help="Results output directory")
+    parser.add_argument(
+        "--tiers", choices=["small", "medium", "all"], default="all",
+        help="Which size tiers to run: small | medium (small+medium) | all (default)",
+    )
     args = parser.parse_args()
+
+    # Filter active tiers based on --tiers flag
+    global TIERS
+    if args.tiers == "small":
+        TIERS = ["small"]
+    elif args.tiers == "medium":
+        TIERS = ["small", "medium"]
+    # else: keep ["small", "medium", "large"]
 
     out_dir = Path(args.output) / f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     device_name = torch.cuda.get_device_name(0) if HAS_GPU else "CPU only"
-    if HAS_GPU:
-        os.environ.setdefault("HSA_OVERRIDE_GFX_VERSION", "10.3.0")
 
     # ── Pre-flight dtype probes ───────────────────────────────────────────────
     # Run a tiny op for each GPU dtype before any benchmark.
@@ -430,28 +452,18 @@ def main():
 
     all_results = []
 
-    def _pre_populate(spec: str, error: str):
-        """Add placeholder error entries for all (bench, tier) combos containing spec."""
-        dev      = "cuda" if spec.startswith("gpu") else "cpu"
-        dt_label = spec.split("/")[1].upper()
-        for tier in TIERS:
-            for b in BENCHMARKS:
-                if spec in b.specs:
-                    all_results.append({
-                        "benchmark": b.result_name, "tier": tier,
-                        "device": dev, "dtype_label": dt_label, "error": error,
-                    })
-
-    seen_specs: set = set()
+    # Pre-populate display table: every cell starts as "—", "hw unsupported", or "unavailable"
+    table_cells: dict = {}
     for b in BENCHMARKS:
-        for spec in b.specs:
-            if spec in seen_specs:
-                continue
-            seen_specs.add(spec)
-            if device_label(spec) is None:
-                _pre_populate(spec, "unavailable")
-            elif spec in hw_unsupported_specs:
-                _pre_populate(spec, "hw unsupported")
+        for tier in TIERS:
+            for spec in b.specs:
+                key = (b.result_name, tier, SPEC_TO_COL[spec])
+                if device_label(spec) is None:
+                    table_cells[key] = "unavailable"
+                elif spec in hw_unsupported_specs:
+                    table_cells[key] = "hw unsupported"
+                else:
+                    table_cells[key] = "—"
 
     # Round-robin job list: all small → all medium → all large
     jobs = [
@@ -474,7 +486,7 @@ def main():
     completed  = 0
     total_jobs = sum(
         1 for tier, _, _, spec in jobs
-        if device_label(spec) is not None and spec not in hw_unsupported_specs
+        if device_label(spec) is not None
     )
     start_time  = time.time()
     interrupted = False
@@ -498,9 +510,24 @@ def main():
             make_progress_panel(jobs, done_jobs, unavailable_jobs, current_job,
                                 completed, total_jobs, start_time)
         )
-        layout["results"].update(make_results_table(all_results))
+        layout["results"].update(make_results_table(table_cells))
 
     gpu_dead = False
+    smi_snapshot_done = False
+
+    def _save_smi_snapshot(path: Path):
+        """Capture rocm-smi or nvidia-smi output to file while GPU is under load."""
+        lines = []
+        for cmd in (["rocm-smi"], ["nvidia-smi"]):
+            try:
+                out = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                if out.returncode == 0 and out.stdout.strip():
+                    lines.append(f"# {' '.join(cmd)}\n{out.stdout}")
+                    break
+            except (FileNotFoundError, subprocess.SubprocessError):
+                continue
+        if lines:
+            path.write_text("\n".join(lines))
 
     def probe_gpu() -> bool:
         try:
@@ -528,10 +555,7 @@ def main():
                     done_jobs.add((tier, bench_label, spec)); completed += 1; refresh_layout(); continue
 
                 if gpu_dead and device == "cuda":
-                    all_results.append({
-                        "benchmark": result_name, "tier": tier,
-                        "device": device, "dtype_label": dt_label, "error": "ctx error",
-                    })
+                    table_cells[(result_name, tier, SPEC_TO_COL[spec])] = "ctx error"
                     done_jobs.add((tier, bench_label, spec)); completed += 1; refresh_layout(); continue
 
                 current_tier = tier
@@ -548,31 +572,40 @@ def main():
                         error_box[0] = e
                 t = threading.Thread(target=_run, daemon=True)
                 t.start()
+                job_start = time.time()
                 while t.is_alive():
                     time.sleep(0.1); refresh_layout()
+                    if (not smi_snapshot_done and device == "cuda"
+                            and tier == TIERS[-1]
+                            and time.time() - job_start > 1.0):
+                        threading.Thread(
+                            target=_save_smi_snapshot,
+                            args=(out_dir / "gpu_snapshot.txt",),
+                            daemon=True,
+                        ).start()
+                        smi_snapshot_done = True
 
                 if error_box[0] is not None:
                     err_str = str(error_box[0])
-                    all_results.append({
-                        "benchmark": result_name, "tier": tier,
-                        "device": device, "dtype_label": dt_label, "error": err_str,
-                    })
-                    if device == "cuda" and spec not in hw_unsupported_specs and "ctx" not in err_str:
+                    # Write error into display table
+                    table_cells[(result_name, tier, SPEC_TO_COL[spec])] = "ctx error" if "ctx" in err_str else "error"
+                    if device == "cuda" and "ctx" not in err_str:
+                        # First runtime failure for this spec: mark all pending cells hw unsupported
                         hw_unsupported_specs.add(spec)
+                        col = SPEC_TO_COL[spec]
                         for _tier in TIERS:
                             for b in BENCHMARKS:
-                                if spec in b.specs and (_tier, b.label) != (tier, bench_label):
-                                    all_results.append({
-                                        "benchmark": b.result_name, "tier": _tier,
-                                        "device": device, "dtype_label": dt_label,
-                                        "error": "hw unsupported",
-                                    })
+                                if spec in b.specs:
+                                    k = (b.result_name, _tier, col)
+                                    if table_cells.get(k) == "—":
+                                        table_cells[k] = "hw unsupported"
                     if device == "cuda" and not probe_gpu() and not reset_gpu():
                         gpu_dead = True
                 else:
                     result = result_box[0]
-                    result["dtype_label"] = dt_label   # normalize for table / report lookups
+                    result["dtype_label"] = dt_label
                     all_results.append(result)
+                    table_cells[(result_name, tier, SPEC_TO_COL[spec])] = _result_key(result)
 
                 monitor.mark(f"{bench_label}_end", tier)
                 done_jobs.add((tier, bench_label, spec)); completed += 1; refresh_layout()
@@ -609,6 +642,10 @@ def main():
                 console.print(f"[green]Report: [/green] {report_path}")
             except Exception as e:
                 console.print(f"[yellow]Report failed:[/yellow] {e}")
+
+            snap_path = out_dir / "gpu_snapshot.txt"
+            if snap_path.exists():
+                console.print(f"[green]GPU snap:[/green] {snap_path}")
 
         if interrupted:
             # os._exit bypasses Python thread cleanup, preventing ROCm crash

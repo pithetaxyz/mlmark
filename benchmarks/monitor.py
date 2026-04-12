@@ -128,6 +128,7 @@ class SystemMonitor:
             self._stop.wait(self.interval)
 
     def _sample(self) -> dict:
+        import glob
         sample = {"t": time.time()}
 
         # CPU load (non-blocking — uses interval since last call)
@@ -146,20 +147,47 @@ class SystemMonitor:
         except Exception:
             sample["cpu_temp"] = None
 
-        # GPU temp + utilization via rocm-smi
+        # GPU utilization — sysfs (AMD) then nvidia-smi (NVIDIA)
+        sample["gpu_util"] = None
+        try:
+            paths = glob.glob("/sys/class/drm/card*/device/gpu_busy_percent")
+            if paths:
+                sample["gpu_util"] = float(open(paths[0]).read().strip())
+        except Exception:
+            pass
+        if sample["gpu_util"] is None:
+            try:
+                out = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=utilization.gpu",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=2
+                )
+                sample["gpu_util"] = float(out.stdout.strip())
+            except Exception:
+                pass
+
+        # GPU temperature — rocm-smi (AMD) then nvidia-smi (NVIDIA)
+        sample["gpu_temp"] = None
         try:
             out = subprocess.run(
-                ["rocm-smi", "--showtemp", "--showuse", "--json"],
+                ["rocm-smi", "--showtemp", "--json"],
                 capture_output=True, text=True, timeout=2
             )
-            data = json.loads(out.stdout)
-            card = next(iter(data.values()))
-            temp_str = card.get("Temperature (Sensor edge) (C)") or card.get("Temperature (Sensor junction) (C)")
-            util_str = card.get("GPU use (%)")
+            card = next(iter(json.loads(out.stdout).values()))
+            temp_str = (card.get("Temperature (Sensor edge) (C)")
+                        or card.get("Temperature (Sensor junction) (C)"))
             sample["gpu_temp"] = float(temp_str) if temp_str else None
-            sample["gpu_util"] = float(util_str) if util_str else None
         except Exception:
-            sample["gpu_temp"] = None
-            sample["gpu_util"] = None
+            pass
+        if sample["gpu_temp"] is None:
+            try:
+                out = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=temperature.gpu",
+                     "--format=csv,noheader,nounits"],
+                    capture_output=True, text=True, timeout=2
+                )
+                sample["gpu_temp"] = float(out.stdout.strip())
+            except Exception:
+                pass
 
         return sample
