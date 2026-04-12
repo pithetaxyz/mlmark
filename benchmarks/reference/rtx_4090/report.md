@@ -1,7 +1,7 @@
 # mlmark — Benchmark Report
 
 **Device:** NVIDIA GeForce RTX 4090  
-**Date:** 2026-04-12 07:27  
+**Date:** 2026-04-12 09:25  
 
 ---
 
@@ -9,25 +9,25 @@
 
 | Tier | Size | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|------|----------|----------|----------|
-| small | 512 | 0.868
-| medium | 2048 | 0.980
-| large | 8192 | 1.215
+| small | 512 | 0.868 | 10.023 | 15.089 |
+| medium | 2048 | 0.980 | 43.341 | 110.703 |
+| large | 8192 | 1.215 | 56.162 | 165.749 |
 
 ## CNN Inference — ResNet-50 (img/s)
 
 | Tier | Batch | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|-------|----------|----------|----------|
-| small | 1 | 44
-| medium | 8 | 70
-| large | 32 | 51
+| small | 1 | 44.0 | 334.6 | 248.3 |
+| medium | 8 | 70.3 | 2549.8 | 2056.3 |
+| large | 32 | 51.1 | 2755.1 | 5161.1 |
 
 ## Transformer Inference — GPT-2 scale (tokens/s)
 
 | Tier | Seq len | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|---------|----------|----------|----------|
-| small | 128 | 3142
-| medium | 512 | 3606
-| large | 2048 | 1885
+| small | 128 | 3142 | 20517 | 44308 |
+| medium | 512 | 3606 | 50121 | 205964 |
+| large | 2048 | 1885 | 73177 | 182559 |
 
 ## Memory Bandwidth (GB/s)
 
