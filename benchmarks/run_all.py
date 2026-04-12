@@ -244,6 +244,11 @@ def make_results_table(results: list) -> Panel:
                                           for k, v in mem_r.get("transfers", {}).items()))
                 else:
                     span.append("—", style="dim")
+                for col, fp_label in [("GPU FP8", "FP8"), ("GPU FP4", "FP4")]:
+                    v = row.get(col, "")
+                    if v == "\x00hw":    span.append(f"  {fp_label}: hw unsupported", style="dim red")
+                    elif v == "\x00na":  span.append(f"  {fp_label}: unavailable",    style="dim")
+                    elif v == "\x00ctx": span.append(f"  {fp_label}: ctx error",      style="dim red")
                 tbl.add_row(label, Text(tier, style=TIER_STYLE.get(tier, "")),
                             span, Text(""), Text(""), Text(""), Text(""))
                 continue
@@ -291,10 +296,10 @@ def generate_report(results: list, device_name: str, out_path: Path):
             valid = [r for r in matmul if r.get("tier") == tier and "error" not in r]
             size  = next((r["size"] for r in valid), "")
             cpu32, gpu32, gpu16 = _lookup(valid,"cpu","FP32"), _lookup(valid,"cuda","FP32"), _lookup(valid,"cuda","FP16")
-            lines.append(f"| {tier} | {size}"
-                         f" | {cpu32['tflops']:.3f}" if cpu32 else '—'
-                         f" | {gpu32['tflops']:.3f}" if gpu32 else '—'
-                         f" | {gpu16['tflops']:.3f}" if gpu16 else '—')
+            c = f"{cpu32['tflops']:.3f}" if cpu32 else "—"
+            g = f"{gpu32['tflops']:.3f}" if gpu32 else "—"
+            h = f"{gpu16['tflops']:.3f}" if gpu16 else "—"
+            lines.append(f"| {tier} | {size} | {c} | {g} | {h} |")
         lines.append("")
 
     if cnn:
@@ -305,10 +310,10 @@ def generate_report(results: list, device_name: str, out_path: Path):
             valid = [r for r in cnn if r.get("tier") == tier and "error" not in r]
             batch = next((r["batch_size"] for r in valid), "")
             cpu32, gpu32, gpu16 = _lookup(valid,"cpu","FP32"), _lookup(valid,"cuda","FP32"), _lookup(valid,"cuda","FP16")
-            lines.append(f"| {tier} | {batch}"
-                         f" | {cpu32['images_per_sec']:.0f}" if cpu32 else '—'
-                         f" | {gpu32['images_per_sec']:.0f}" if gpu32 else '—'
-                         f" | {gpu16['images_per_sec']:.0f}" if gpu16 else '—')
+            c = f"{cpu32['images_per_sec']:.1f}" if cpu32 else "—"
+            g = f"{gpu32['images_per_sec']:.1f}" if gpu32 else "—"
+            h = f"{gpu16['images_per_sec']:.1f}" if gpu16 else "—"
+            lines.append(f"| {tier} | {batch} | {c} | {g} | {h} |")
         lines.append("")
 
     if tfm:
@@ -319,10 +324,10 @@ def generate_report(results: list, device_name: str, out_path: Path):
             valid = [r for r in tfm if r.get("tier") == tier and "error" not in r]
             seq   = next((r["seq_len"] for r in valid), "")
             cpu32, gpu32, gpu16 = _lookup(valid,"cpu","FP32"), _lookup(valid,"cuda","FP32"), _lookup(valid,"cuda","FP16")
-            lines.append(f"| {tier} | {seq}"
-                         f" | {cpu32['tokens_per_sec']:.0f}" if cpu32 else '—'
-                         f" | {gpu32['tokens_per_sec']:.0f}" if gpu32 else '—'
-                         f" | {gpu16['tokens_per_sec']:.0f}" if gpu16 else '—')
+            c = f"{cpu32['tokens_per_sec']:.0f}" if cpu32 else "—"
+            g = f"{gpu32['tokens_per_sec']:.0f}" if gpu32 else "—"
+            h = f"{gpu16['tokens_per_sec']:.0f}" if gpu16 else "—"
+            lines.append(f"| {tier} | {seq} | {c} | {g} | {h} |")
         lines.append("")
 
     if mem:
