@@ -15,7 +15,7 @@ def _matmul(a, b, device):
     """Dispatch to the right matmul op depending on dtype."""
     if a.dtype in (torch.float8_e4m3fn, torch.float8_e5m2) if hasattr(torch, "float8_e4m3fn") else ():
         scale = torch.tensor(1.0, device=device)
-        return torch._scaled_mm(a, b.t().contiguous(), scale_a=scale, scale_b=scale,
+        return torch._scaled_mm(a, b.t(), scale_a=scale, scale_b=scale,
                                 out_dtype=torch.float16)
     return torch.matmul(a, b)
 

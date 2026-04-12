@@ -1,7 +1,7 @@
 # mlmark — Benchmark Report
 
 **Device:** NVIDIA GeForce RTX 4090  
-**Date:** 2026-04-12 09:25  
+**Date:** 2026-04-12 19:13  
 
 ---
 
@@ -9,39 +9,39 @@
 
 | Tier | Size | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|------|----------|----------|----------|
-| small | 512 | 0.868 | 10.023 | 15.089 |
-| medium | 2048 | 0.980 | 43.341 | 110.703 |
-| large | 8192 | 1.215 | 56.162 | 165.749 |
+| small | 512 | 0.633 | 15.399 | 16.232 |
+| medium | 2048 | 0.962 | 55.305 | 146.141 |
+| large | 8192 | 1.144 | 54.205 | 160.916 |
 
 ## CNN Inference — ResNet-50 (img/s)
 
 | Tier | Batch | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|-------|----------|----------|----------|
-| small | 1 | 44.0 | 334.6 | 248.3 |
-| medium | 8 | 70.3 | 2549.8 | 2056.3 |
-| large | 32 | 51.1 | 2755.1 | 5161.1 |
+| small | 1 | 42.9 | 269.6 | 252.9 |
+| medium | 8 | 58.0 | 2517.5 | 1995.5 |
+| large | 32 | 48.7 | 2664.8 | 4922.3 |
 
 ## Transformer Inference — GPT-2 scale (tokens/s)
 
 | Tier | Seq len | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|---------|----------|----------|----------|
-| small | 128 | 3142 | 20517 | 44308 |
-| medium | 512 | 3606 | 50121 | 205964 |
-| large | 2048 | 1885 | 73177 | 182559 |
+| small | 128 | 3050 | 39356 | 50105 |
+| medium | 512 | 3438 | 94710 | 169030 |
+| large | 2048 | 1779 | 70947 | 181327 |
 
 ## Memory Bandwidth (GB/s)
 
 | Tier | Size | H2D | D2H | D2D |
 |------|------|-----|-----|-----|
-| small | 64 MB | 12.72 | 6.85 | 6132.32 |
-| medium | 512 MB | 10.2 | 6.44 | 13595.05 |
-| large | 2048 MB | 11.63 | 4.86 | 14878.89 |
+| small | 64 MB | 11.56 | 6.72 | 5788.51 |
+| medium | 512 MB | 12.29 | 6.17 | 12901.24 |
+| large | 2048 MB | 11.56 | 4.79 | 13301.48 |
 
 > **H2D** Host→GPU  **D2H** GPU→Host  **D2D** GPU internal — on iGPU all share physical RAM, so H2D/D2H are CPU-controller bound (~2-3 GB/s) while D2D is a fast memcopy (~290 GB/s).
 
 ## Peak Results
 
-- **Matmul:** 165.749 TFLOPS  (GPU FP16, N=8192)
-- **CNN ResNet-50:** 5161.1 img/s  (GPU FP16, batch=32)
-- **Transformer:** 205964 tok/s  (GPU FP16, seq=512)
-- **Memory D2D:** 15692.5 GB/s  (GPU, 2048 MB)
+- **Matmul:** 314.367 TFLOPS  (GPU FP8, N=8192)
+- **CNN ResNet-50:** 4922.3 img/s  (GPU FP16, batch=32)
+- **Transformer:** 181327 tok/s  (GPU FP16, seq=2048)
+- **Memory D2D:** 13301.5 GB/s  (GPU, 2048 MB)

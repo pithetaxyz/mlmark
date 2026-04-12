@@ -421,9 +421,9 @@ def main():
         try:
             if dtype in (getattr(torch, "float8_e4m3fn", None),
                          getattr(torch, "float8_e5m2",   None)):
-                a = torch.zeros(8, 8, device="cuda").to(dtype)
+                a = torch.zeros(16, 16, device="cuda").to(dtype)
                 s = torch.tensor(1.0, device="cuda")
-                torch._scaled_mm(a, a.t().contiguous(), scale_a=s, scale_b=s,
+                torch._scaled_mm(a, a.t(), scale_a=s, scale_b=s,
                                  out_dtype=torch.float16)
             else:
                 torch.zeros(8, 8, device="cuda").to(dtype)
