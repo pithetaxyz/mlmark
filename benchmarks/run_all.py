@@ -302,16 +302,19 @@ def generate_report(results: list, device_name: str, out_path: Path):
 
     if matmul:
         lines += ["## Matrix Multiplication (TFLOPS)", "",
-                  "| Tier | Size | CPU FP32 | GPU FP32 | GPU FP16 |",
-                  "|------|------|----------|----------|----------|"]
+                  "| Tier | Size | CPU FP32 | GPU FP32 | GPU FP16 | GPU FP8 | GPU FP4 |",
+                  "|------|------|----------|----------|----------|---------|---------|"]
         for tier in TIERS:
             valid = [r for r in matmul if r.get("tier") == tier and "error" not in r]
             size  = next((r["size"] for r in valid), "")
             cpu32, gpu32, gpu16 = _lookup(valid,"cpu","FP32"), _lookup(valid,"cuda","FP32"), _lookup(valid,"cuda","FP16")
+            gpu8, gpu4 = _lookup(valid,"cuda","FP8"), _lookup(valid,"cuda","FP4")
             c = f"{cpu32['tflops']:.3f}" if cpu32 else "—"
             g = f"{gpu32['tflops']:.3f}" if gpu32 else "—"
             h = f"{gpu16['tflops']:.3f}" if gpu16 else "—"
-            lines.append(f"| {tier} | {size} | {c} | {g} | {h} |")
+            e8 = f"{gpu8['tflops']:.3f}" if gpu8 else "—"
+            e4 = f"{gpu4['tflops']:.3f}" if gpu4 else "—"
+            lines.append(f"| {tier} | {size} | {c} | {g} | {h} | {e8} | {e4} |")
         lines.append("")
 
     if cnn:
