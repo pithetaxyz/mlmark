@@ -1,67 +1,70 @@
 """
-GPU memory bandwidth benchmark — measures host-to-device, device-to-host,
-and device-to-device transfer throughput. Critical for iGPU (shared RAM) systems.
+GPU memory bandwidth benchmark — H2D, D2H, D2D transfer throughput.
 """
 import torch
 import time
 import json
 
 RUNS = 20
-SIZES_MB = [64, 256, 512, 1024, 2048]
+
+SIZE_TIERS = {"small": 64, "medium": 512, "large": 2048}  # MB
 
 
-def bandwidth(src, dst, size_mb, label):
-    n = (size_mb * 1024 * 1024) // 4  # float32 elements
-    t = torch.randn(n, dtype=torch.float32, device=src)
-    if src != "cpu":
-        torch.cuda.synchronize()
-
-    t0 = time.perf_counter()
-    for _ in range(RUNS):
-        t2 = t.to(dst)
-        torch.cuda.synchronize() if dst != "cpu" else None
-    elapsed = time.perf_counter() - t0
-
-    gb = size_mb / 1024 * RUNS
-    gbps = gb / elapsed
-    return round(gbps, 2)
-
-
-def main():
+def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
     if not torch.cuda.is_available():
-        print("  No GPU available.")
-        return {}
+        raise RuntimeError("No GPU available")
 
-    device_name = torch.cuda.get_device_name(0)
-    total_vram = round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2)
-    results = {
-        "benchmark": "memory_bandwidth",
-        "device": device_name,
-        "vram_total_gb": total_vram,
-        "results": []
-    }
-    print(f"  Device: {device_name}  VRAM: {total_vram} GB")
+    bytes_per_elem = {
+        torch.float32: 4, torch.float16: 2, torch.bfloat16: 2,
+    }.get(dtype, getattr(dtype, "itemsize", 1))
 
-    transfers = [
-        ("cpu", "cuda", "H2D (host→GPU)"),
-        ("cuda", "cpu",  "D2H (GPU→host)"),
-        ("cuda", "cuda", "D2D (GPU→GPU)"),
-    ]
+    size_mb = SIZE_TIERS[tier]
+    n = (size_mb * 1024 * 1024) // bytes_per_elem
 
-    for size_mb in SIZES_MB:
-        for src, dst, label in transfers:
-            try:
-                gbps = bandwidth(src, dst, size_mb, label)
-                row = {"label": label, "size_mb": size_mb, "gbps": gbps}
-                results["results"].append(row)
-                print(f"  {label:20s}  {size_mb:5d} MB  {gbps:7.2f} GB/s")
-            except Exception as e:
-                print(f"  {label:20s}  {size_mb:5d} MB  ERROR: {e}")
+    results = {"benchmark": "memory_bandwidth", "tier": tier, "size_mb": size_mb,
+               "dtype": str(dtype), "transfers": {}}
+
+    # For dtypes that can't be created on CPU (e.g. FP8), allocate on GPU and use
+    # view-as-uint8 for the CPU-side buffer so H2D/D2H measure the right byte count.
+    cpu_friendly = dtype in (torch.float32, torch.float16, torch.bfloat16)
+
+    transfers = [("cpu", "cuda", "H2D"), ("cuda", "cpu", "D2H"), ("cuda", "cuda", "D2D")]
+    for src, dst, label in transfers:
+        if src == "cpu":
+            if cpu_friendly:
+                t = torch.randn(n, dtype=dtype, device="cpu")
+            else:
+                # same byte count as the target dtype
+                t = torch.randint(0, 256, (n,), dtype=torch.uint8, device="cpu")
+        else:
+            # allocate in fp32 on GPU then cast — works for fp8 since GPU supports the view
+            t = torch.randn(n, device="cuda").to(dtype)
+        if src != "cpu":
+            torch.cuda.synchronize()
+
+        t0 = time.perf_counter()
+        for _ in range(RUNS):
+            t2 = t.to(dst)
+            if dst != "cpu":
+                torch.cuda.synchronize()
+        elapsed = time.perf_counter() - t0
+
+        gbps = (size_mb / 1024 * RUNS) / elapsed
+        results["transfers"][label] = round(gbps, 2)
 
     return results
 
 
 if __name__ == "__main__":
-    print("=== Memory Bandwidth Benchmark ===")
-    r = main()
-    print(json.dumps(r, indent=2))
+    device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
+    print(f"=== Memory Bandwidth Benchmark  ({device_name}) ===")
+    all_results = []
+    for tier in SIZE_TIERS:
+        try:
+            r = run_one(tier, "cuda", torch.float32)
+            for label, gbps in r["transfers"].items():
+                print(f"  {tier:8s}  {label:4s}  {r['size_mb']:5d} MB  {gbps:7.2f} GB/s")
+            all_results.append(r)
+        except Exception as e:
+            print(f"  {tier:8s}  ERROR: {e}")
+    print(json.dumps(all_results, indent=2))
