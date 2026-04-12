@@ -10,7 +10,7 @@ WARMUP = 10
 RUNS = 50
 INPUT_SIZE = (3, 224, 224)
 
-SIZE_TIERS = {"small": 1, "medium": 8, "large": 32}
+SIZE_TIERS = {"small": 32, "medium": 128, "large": 512}
 
 
 def _make_model():

@@ -387,7 +387,7 @@ def generate_report(results: list, device_name: str, out_path: Path):
 
     lines += peaks
     lines.append("")
-    out_path.write_text("\n".join(lines))
+    out_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -521,11 +521,24 @@ def main():
     def _save_smi_snapshot(path: Path):
         """Capture rocm-smi or nvidia-smi output to file while GPU is under load."""
         lines = []
+
+        def _strip_processes(text: str) -> str:
+            # NVIDIA: section starts with "Processes"
+            if "Processes" in text:
+                text = text.split("Processes", 1)[0]
+
+            # ROCm: sometimes shows "PID" or process table headers
+            if "PID" in text and "GPU" in text:
+                text = text.split("PID", 1)[0]
+
+            return text.strip()
+
         for cmd in (["rocm-smi"], ["nvidia-smi"]):
             try:
                 out = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
                 if out.returncode == 0 and out.stdout.strip():
-                    lines.append(f"# {' '.join(cmd)}\n{out.stdout}")
+                    clean = _strip_processes(out.stdout)
+                    lines.append(f"# {' '.join(cmd)}\n{clean}")
                     break
             except (FileNotFoundError, subprocess.SubprocessError):
                 continue
