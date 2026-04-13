@@ -422,12 +422,16 @@ def main():
     def _probe_dtype(dtype) -> bool:
         """Return True if dtype is usable for GPU compute."""
         try:
-            if dtype in (getattr(torch, "float8_e4m3fn", None),
-                         getattr(torch, "float8_e5m2",   None)):
+            _fp8 = getattr(torch, "float8_e4m3fn", None)
+            _fp4 = getattr(torch, "float4_e2m1fn_x2", None)
+            if _fp8 is not None and dtype == _fp8:
                 a = torch.zeros(16, 16, device="cuda").to(dtype)
                 s = torch.tensor(1.0, device="cuda")
                 torch._scaled_mm(a, a.t(), scale_a=s, scale_b=s,
                                  out_dtype=torch.float16)
+            elif _fp4 is not None and dtype == _fp4:
+                a = torch.randint(0, 256, (32, 16), device="cuda", dtype=torch.uint8).view(dtype)
+                torch._int_mm(a.view(torch.int8), a.view(torch.int8).t())
             else:
                 torch.zeros(8, 8, device="cuda").to(dtype)
             torch.cuda.synchronize()

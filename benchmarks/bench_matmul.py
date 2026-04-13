@@ -13,17 +13,23 @@ SIZE_TIERS = {"small": 512, "medium": 2048, "large": 8192}
 
 def _matmul(a, b, device):
     """Dispatch to the right matmul op depending on dtype."""
-    if a.dtype in (torch.float8_e4m3fn, torch.float8_e5m2) if hasattr(torch, "float8_e4m3fn") else ():
+    if hasattr(torch, "float8_e4m3fn") and a.dtype == torch.float8_e4m3fn:
         scale = torch.tensor(1.0, device=device)
         return torch._scaled_mm(a, b.t(), scale_a=scale, scale_b=scale,
                                 out_dtype=torch.float16)
+    elif hasattr(torch, "float4_e2m1fn_x2") and a.dtype == torch.float4_e2m1fn_x2:
+        return torch._int_mm(a.view(torch.int8), b.view(torch.int8).t())
     return torch.matmul(a, b)
 
 
 def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
     N = SIZE_TIERS[tier]
-    a = torch.randn(N, N, device=device).to(dtype)
-    b = torch.randn(N, N, device=device).to(dtype)
+    if dtype == getattr(torch, "float4_e2m1fn_x2", None):
+        a = torch.randint(0, 256, (N, N // 2), device=device, dtype=torch.uint8).view(dtype)
+        b = torch.randint(0, 256, (N, N // 2), device=device, dtype=torch.uint8).view(dtype)
+    else:
+        a = torch.randn(N, N, device=device).to(dtype)
+        b = torch.randn(N, N, device=device).to(dtype)
 
     for _ in range(WARMUP):
         _matmul(a, b, device)
@@ -56,6 +62,11 @@ if __name__ == "__main__":
     configs = [("cpu", torch.float32, "CPU FP32")]
     if torch.cuda.is_available():
         configs += [("cuda", torch.float32, "GPU FP32"), ("cuda", torch.float16, "GPU FP16")]
+        if hasattr(torch, "float8_e4m3fn"):
+            configs += [("cuda", torch.float8_e4m3fn, "GPU FP8")]
+        if hasattr(torch, "float4_e2m1fn_x2"):
+            configs += [("cuda", torch.float4_e2m1fn_x2, "GPU FP4")]
+
     for tier in SIZE_TIERS:
         for device, dtype, label in configs:
             try:

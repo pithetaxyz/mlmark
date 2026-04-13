@@ -44,7 +44,10 @@ def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
 
         t0 = time.perf_counter()
         for _ in range(RUNS):
-            t2 = t.to(dst)
+            if src == dst:
+                t2 = t.clone()
+            else:
+                t2 = t.to(dst)
             if dst != "cpu":
                 torch.cuda.synchronize()
         elapsed = time.perf_counter() - t0
