@@ -7,10 +7,11 @@ import time
 import json
 
 WARMUP = 10
-RUNS = 50
+CPU_RUNS = 10
+GPU_RUNS = 50
 INPUT_SIZE = (3, 224, 224)
 
-SIZE_TIERS = {"small": 32, "medium": 128, "large": 512}
+SIZE_TIERS = {"small": 8, "medium": 32, "large": 128}
 
 
 def _make_model():
@@ -28,7 +29,7 @@ def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
     batch_size = SIZE_TIERS[tier]
     model = _make_model().to(device=device, dtype=dtype).eval()
     x = torch.randn(batch_size, *INPUT_SIZE, device=device, dtype=dtype)
-
+    runs = CPU_RUNS if device=='cpu' else GPU_RUNS
     with torch.no_grad():
         for _ in range(WARMUP):
             model(x)
@@ -36,7 +37,7 @@ def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
             torch.cuda.synchronize()
 
         t0 = time.perf_counter()
-        for _ in range(RUNS):
+        for _ in range(runs):
             model(x)
         if device != "cpu":
             torch.cuda.synchronize()
@@ -48,8 +49,8 @@ def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
         "batch_size": batch_size,
         "device": device,
         "dtype": str(dtype),
-        "images_per_sec": round(batch_size * RUNS / elapsed, 1),
-        "ms_per_batch": round(elapsed / RUNS * 1000, 2),
+        "images_per_sec": round(batch_size * runs / elapsed, 1),
+        "ms_per_batch": round(elapsed / runs * 1000, 2),
     }
 
 
