@@ -15,9 +15,17 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 .\.venv\Scripts\activate
 ```
 
-# install libs
+# install torch
+# for 50xx
+```
+pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+```
+# for 40xx
 ```
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+```
+
+# install mlmark
 git clone https://github.com/pithetaxyz/mlmark.git
 cd mlmark
 pip install -r requirements.txt
