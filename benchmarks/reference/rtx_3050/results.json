@@ -5,8 +5,8 @@
     "size": 512,
     "device": "cpu",
     "dtype": "torch.float32",
-    "tflops": 0.35,
-    "ms_per_run": 0.77,
+    "tflops": 0.325,
+    "ms_per_run": 0.83,
     "dtype_label": "FP32"
   },
   {
@@ -15,7 +15,7 @@
     "size": 512,
     "device": "cuda",
     "dtype": "torch.float32",
-    "tflops": 3.529,
+    "tflops": 3.502,
     "ms_per_run": 0.08,
     "dtype_label": "FP32"
   },
@@ -25,7 +25,7 @@
     "size": 512,
     "device": "cuda",
     "dtype": "torch.float16",
-    "tflops": 9.694,
+    "tflops": 10.631,
     "ms_per_run": 0.03,
     "dtype_label": "FP16"
   },
@@ -35,8 +35,8 @@
     "batch_size": 8,
     "device": "cpu",
     "dtype": "torch.float32",
-    "images_per_sec": 804.4,
-    "ms_per_batch": 9.95,
+    "images_per_sec": 28.7,
+    "ms_per_batch": 278.73,
     "dtype_label": "FP32"
   },
   {
@@ -45,8 +45,8 @@
     "batch_size": 8,
     "device": "cuda",
     "dtype": "torch.float32",
-    "images_per_sec": 5283.8,
-    "ms_per_batch": 1.51,
+    "images_per_sec": 333.5,
+    "ms_per_batch": 23.99,
     "dtype_label": "FP32"
   },
   {
@@ -55,8 +55,8 @@
     "batch_size": 8,
     "device": "cuda",
     "dtype": "torch.float16",
-    "images_per_sec": 8182.5,
-    "ms_per_batch": 0.98,
+    "images_per_sec": 578.3,
+    "ms_per_batch": 13.83,
     "dtype_label": "FP16"
   },
   {
@@ -65,8 +65,8 @@
     "seq_len": 128,
     "device": "cpu",
     "dtype": "torch.float32",
-    "ms_per_run": 64.25,
-    "tokens_per_sec": 1992.2,
+    "ms_per_run": 78.83,
+    "tokens_per_sec": 1623.8,
     "dtype_label": "FP32"
   },
   {
@@ -75,8 +75,8 @@
     "seq_len": 128,
     "device": "cuda",
     "dtype": "torch.float32",
-    "ms_per_run": 7.59,
-    "tokens_per_sec": 16870.4,
+    "ms_per_run": 7.99,
+    "tokens_per_sec": 16029.7,
     "dtype_label": "FP32"
   },
   {
@@ -85,8 +85,8 @@
     "seq_len": 128,
     "device": "cuda",
     "dtype": "torch.float16",
-    "ms_per_run": 3.56,
-    "tokens_per_sec": 35969.2,
+    "ms_per_run": 5.71,
+    "tokens_per_sec": 22411.4,
     "dtype_label": "FP16"
   },
   {
@@ -95,9 +95,9 @@
     "size_mb": 64,
     "dtype": "torch.float32",
     "transfers": {
-      "H2D": 10.69,
-      "D2H": 10.4,
-      "D2D": 13185.65
+      "H2D": 8.61,
+      "D2H": 10.64,
+      "D2D": 12413.11
     },
     "dtype_label": "FP32"
   },
@@ -107,8 +107,8 @@
     "size": 2048,
     "device": "cpu",
     "dtype": "torch.float32",
-    "tflops": 0.42,
-    "ms_per_run": 40.93,
+    "tflops": 0.388,
+    "ms_per_run": 44.25,
     "dtype_label": "FP32"
   },
   {
@@ -117,8 +117,8 @@
     "size": 2048,
     "device": "cuda",
     "dtype": "torch.float32",
-    "tflops": 4.963,
-    "ms_per_run": 3.46,
+    "tflops": 4.915,
+    "ms_per_run": 3.5,
     "dtype_label": "FP32"
   },
   {
@@ -127,7 +127,7 @@
     "size": 2048,
     "device": "cuda",
     "dtype": "torch.float16",
-    "tflops": 14.374,
+    "tflops": 14.337,
     "ms_per_run": 1.2,
     "dtype_label": "FP16"
   },
@@ -137,8 +137,8 @@
     "batch_size": 32,
     "device": "cpu",
     "dtype": "torch.float32",
-    "images_per_sec": 830.1,
-    "ms_per_batch": 38.55,
+    "images_per_sec": 32.1,
+    "ms_per_batch": 996.76,
     "dtype_label": "FP32"
   },
   {
@@ -147,8 +147,8 @@
     "batch_size": 32,
     "device": "cuda",
     "dtype": "torch.float32",
-    "images_per_sec": 5984.1,
-    "ms_per_batch": 5.35,
+    "images_per_sec": 367.2,
+    "ms_per_batch": 87.15,
     "dtype_label": "FP32"
   },
   {
@@ -157,8 +157,8 @@
     "batch_size": 32,
     "device": "cuda",
     "dtype": "torch.float16",
-    "images_per_sec": 8330.0,
-    "ms_per_batch": 3.84,
+    "images_per_sec": 662.3,
+    "ms_per_batch": 48.31,
     "dtype_label": "FP16"
   },
   {
@@ -167,8 +167,8 @@
     "seq_len": 512,
     "device": "cpu",
     "dtype": "torch.float32",
-    "ms_per_run": 281.87,
-    "tokens_per_sec": 1816.4,
+    "ms_per_run": 279.23,
+    "tokens_per_sec": 1833.6,
     "dtype_label": "FP32"
   },
   {
@@ -177,8 +177,8 @@
     "seq_len": 512,
     "device": "cuda",
     "dtype": "torch.float32",
-    "ms_per_run": 28.45,
-    "tokens_per_sec": 17995.2,
+    "ms_per_run": 28.75,
+    "tokens_per_sec": 17810.7,
     "dtype_label": "FP32"
   },
   {
@@ -187,8 +187,8 @@
     "seq_len": 512,
     "device": "cuda",
     "dtype": "torch.float16",
-    "ms_per_run": 10.58,
-    "tokens_per_sec": 48402.5,
+    "ms_per_run": 10.76,
+    "tokens_per_sec": 47573.7,
     "dtype_label": "FP16"
   },
   {
@@ -197,9 +197,9 @@
     "size_mb": 512,
     "dtype": "torch.float32",
     "transfers": {
-      "H2D": 10.58,
-      "D2H": 8.74,
-      "D2D": 119047.7
+      "H2D": 10.26,
+      "D2H": 8.4,
+      "D2D": 119474.4
     },
     "dtype_label": "FP32"
   },
@@ -209,8 +209,8 @@
     "size": 8192,
     "device": "cpu",
     "dtype": "torch.float32",
-    "tflops": 0.505,
-    "ms_per_run": 2177.91,
+    "tflops": 0.545,
+    "ms_per_run": 2017.14,
     "dtype_label": "FP32"
   },
   {
@@ -219,8 +219,8 @@
     "size": 8192,
     "device": "cuda",
     "dtype": "torch.float32",
-    "tflops": 4.91,
-    "ms_per_run": 223.94,
+    "tflops": 4.911,
+    "ms_per_run": 223.87,
     "dtype_label": "FP32"
   },
   {
@@ -229,8 +229,8 @@
     "size": 8192,
     "device": "cuda",
     "dtype": "torch.float16",
-    "tflops": 16.886,
-    "ms_per_run": 65.11,
+    "tflops": 16.831,
+    "ms_per_run": 65.33,
     "dtype_label": "FP16"
   },
   {
@@ -239,8 +239,8 @@
     "batch_size": 128,
     "device": "cpu",
     "dtype": "torch.float32",
-    "images_per_sec": 735.4,
-    "ms_per_batch": 174.05,
+    "images_per_sec": 26.0,
+    "ms_per_batch": 4915.73,
     "dtype_label": "FP32"
   },
   {
@@ -249,8 +249,8 @@
     "batch_size": 128,
     "device": "cuda",
     "dtype": "torch.float32",
-    "images_per_sec": 6029.9,
-    "ms_per_batch": 21.23,
+    "images_per_sec": 387.9,
+    "ms_per_batch": 330.0,
     "dtype_label": "FP32"
   },
   {
@@ -259,8 +259,8 @@
     "batch_size": 128,
     "device": "cuda",
     "dtype": "torch.float16",
-    "images_per_sec": 8394.0,
-    "ms_per_batch": 15.25,
+    "images_per_sec": 698.7,
+    "ms_per_batch": 183.21,
     "dtype_label": "FP16"
   },
   {
@@ -269,8 +269,8 @@
     "seq_len": 2048,
     "device": "cpu",
     "dtype": "torch.float32",
-    "ms_per_run": 1643.26,
-    "tokens_per_sec": 1246.3,
+    "ms_per_run": 1535.49,
+    "tokens_per_sec": 1333.8,
     "dtype_label": "FP32"
   },
   {
@@ -279,8 +279,8 @@
     "seq_len": 2048,
     "device": "cuda",
     "dtype": "torch.float32",
-    "ms_per_run": 194.93,
-    "tokens_per_sec": 10506.2,
+    "ms_per_run": 195.39,
+    "tokens_per_sec": 10481.8,
     "dtype_label": "FP32"
   },
   {
@@ -289,8 +289,8 @@
     "seq_len": 2048,
     "device": "cuda",
     "dtype": "torch.float16",
-    "ms_per_run": 93.43,
-    "tokens_per_sec": 21920.8,
+    "ms_per_run": 93.83,
+    "tokens_per_sec": 21826.4,
     "dtype_label": "FP16"
   },
   {
@@ -299,9 +299,9 @@
     "size_mb": 2048,
     "dtype": "torch.float32",
     "transfers": {
-      "H2D": 10.33,
-      "D2H": 4.52,
-      "D2D": 529.21
+      "H2D": 10.18,
+      "D2H": 3.87,
+      "D2D": 480.39
     },
     "dtype_label": "FP32"
   }
