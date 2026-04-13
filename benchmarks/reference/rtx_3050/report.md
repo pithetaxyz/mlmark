@@ -1,7 +1,7 @@
 # mlmark — Benchmark Report
 
 **Device:** NVIDIA GeForce RTX 3050 OEM  
-**Date:** 2026-04-12 13:04  
+**Date:** 2026-04-12 19:59  
 
 ---
 
@@ -9,39 +9,39 @@
 
 | Tier | Size | CPU FP32 | GPU FP32 | GPU FP16 | GPU FP8 | GPU FP4 |
 |------|------|----------|----------|----------|---------|---------|
-| small | 512 | 0.352 | 3.519 | 10.661 | — | — |
-| medium | 2048 | 0.459 | 4.975 | 14.569 | — | — |
-| large | 8192 | 0.431 | 4.893 | 16.636 | — | — |
+| small | 512 | 0.350 | 3.529 | 9.694 | — | — |
+| medium | 2048 | 0.420 | 4.963 | 14.374 | — | — |
+| large | 8192 | 0.505 | 4.910 | 16.886 | — | — |
 
 ## CNN Inference — ResNet-50 (img/s)
 
 | Tier | Batch | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|-------|----------|----------|----------|
-| small | 32 | 831.1 | 5955.6 | 8072.2 |
-| medium | 128 | 754.0 | 6084.0 | 8459.4 |
-| large | 512 | 371.3 | 6056.1 | 8399.2 |
+| small | 8 | 804.4 | 5283.8 | 8182.5 |
+| medium | 32 | 830.1 | 5984.1 | 8330.0 |
+| large | 128 | 735.4 | 6029.9 | 8394.0 |
 
 ## Transformer Inference — GPT-2 scale (tokens/s)
 
 | Tier | Seq len | CPU FP32 | GPU FP32 | GPU FP16 |
 |------|---------|----------|----------|----------|
-| small | 128 | 1728 | 16768 | 29935 |
-| medium | 512 | 1916 | 18028 | 48489 |
-| large | 2048 | 1190 | 10520 | 21771 |
+| small | 128 | 1992 | 16870 | 35969 |
+| medium | 512 | 1816 | 17995 | 48402 |
+| large | 2048 | 1246 | 10506 | 21921 |
 
 ## Memory Bandwidth (GB/s)
 
 | Tier | Size | H2D | D2H | D2D |
 |------|------|-----|-----|-----|
-| small | 64 MB | 10.93 | 9.93 | 12742.11 |
-| medium | 512 MB | 10.48 | 10.19 | 62539.07 |
-| large | 2048 MB | 7.53 | 4.3 | 388.91 |
+| small | 64 MB | 10.69 | 10.4 | 13185.65 |
+| medium | 512 MB | 10.58 | 8.74 | 119047.7 |
+| large | 2048 MB | 10.33 | 4.52 | 529.21 |
 
 > **H2D** Host→GPU  **D2H** GPU→Host  **D2D** GPU internal — on iGPU all share physical RAM, so H2D/D2H are CPU-controller bound (~2-3 GB/s) while D2D is a fast memcopy (~290 GB/s).
 
 ## Peak Results
 
-- **Matmul:** 16.636 TFLOPS  (GPU FP16, N=8192)
-- **CNN ResNet-50:** 8459.4 img/s  (GPU FP16, batch=128)
-- **Transformer:** 48489 tok/s  (GPU FP16, seq=512)
-- **Memory D2D:** 62539.1 GB/s  (GPU, 512 MB)
+- **Matmul:** 16.886 TFLOPS  (GPU FP16, N=8192)
+- **CNN ResNet-50:** 8394.0 img/s  (GPU FP16, batch=128)
+- **Transformer:** 48402 tok/s  (GPU FP16, seq=512)
+- **Memory D2D:** 119047.7 GB/s  (GPU, 512 MB)

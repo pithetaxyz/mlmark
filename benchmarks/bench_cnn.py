@@ -38,9 +38,11 @@ def run_one(tier: str, device: str, dtype: torch.dtype) -> dict:
 
         t0 = time.perf_counter()
         for _ in range(runs):
-            model(x)
+            out = model(x)
         if device != "cpu":
             torch.cuda.synchronize()
+        else:
+            out.sum().item()
         elapsed = time.perf_counter() - t0
 
     return {
